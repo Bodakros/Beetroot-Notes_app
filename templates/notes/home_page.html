@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Main page</title>
+
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static 'css/notes_style.css' %}">
+</head>
+<body>
+
+    <h1 class="main-title">Усі нотатки ({{ total_notes }})</h1>
+    <hr class="separator">
+
+    <div class="notes-container">
+        {% for note in notes %}
+        <div class="note-card">
+            <h3>{{ note.title }}</h3>
+            <div class="strike-through"></div>
+            <p>{{ note.text }}</p>
+        </div>
+        {% empty %}
+        <p>Нотаток ще немає.</p>
+        {% endfor %}
+    </div>
+
+</body>
+</html>
