@@ -5,7 +5,7 @@
     <title>Main page</title>
 
     {% load static %}
-    <link rel="stylesheet" type="text/css" href="{% static 'css/notes_style.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/note.css' %}">
 </head>
 <body>
 
@@ -17,7 +17,9 @@
         <div class="note-card">
             <h3>{{ note.title }}</h3>
             <div class="strike-through"></div>
+            <p>Категорія: {{ note.category }}</p>
             <p>{{ note.text }}</p>
+            <p>Нагадування: {{ note.reminder }}</p>
         </div>
         {% empty %}
         <p>Нотаток ще немає.</p>
