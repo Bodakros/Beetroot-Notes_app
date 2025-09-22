@@ -6,27 +6,87 @@
 
     {% load static %}
     <link rel="stylesheet" type="text/css" href="{% static 'css/note.css' %}">
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
+    <div class="container mt-4">
+        <h1 class="main-title">Усі нотатки ({{ total_notes }})</h1>
 
-    <h1 class="main-title">Усі нотатки ({{ total_notes }})</h1>
-    <hr class="separator">
+        <div class="control-panel mb-4">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <a href="{% url 'create_note' %}" class="btn btn-success btn-lg w-100">
+                        + Створити нотатку
+                    </a>
+                    <a href="{% url 'create_category' %}" class="btn btn-warning btn-lg w-100">
+                        + Категорія
+                    </a>
+                </div>
 
-    <div class="notes-container">
-        {% for note in notes %}
-        <div class="note-card">
-            <h3>{{ note.title }}</h3>
-            <div class="strike-through"></div>
-            <p>Категорія: {{ note.category }}</p>
-            <br>
-            <p>{{ note.text }}</p>
-            <br>
-            <p>Нагадування: {{ note.reminder }}</p>
+                <div class="col-md-5 mb-3">
+                <form method="get" class="d-flex">
+                    {{ search.search_query }}
+                    <button type="submit" class="btn btn-primary ms-2">🔍 Пошук</button>
+                </form>
+                </div>
+
+                <div class="col-md-5 mb-3">
+                    <form method="get" class="d-flex">
+                        {{ filter.category }}
+                        <button type="submit" class="btn btn-info ms-2">Фільтр</button>
+                    </form>
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <a href="{% url 'home' %}" class="btn btn-secondary w-100">Скинути</a>
+                </div>
+
+            </div>
         </div>
-        {% empty %}
-        <p>Нотаток ще немає.</p>
-        {% endfor %}
+
+        <hr class="separator">
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+        <div class="notes-container">
+            {% for note in notes %}
+            <div class="note-card" onclick="location.href='{% url 'note_detail' note.id %}'" style="cursor: pointer;">
+                <h3>{{ note.title }}</h3>
+                <div class="strike-through"></div>
+                <p><strong>Категорія:</strong> {{ note.category }}</p>
+
+                {% if note.text %}
+                    <p class="note-text">{{ note.text|truncatewords:20 }}</p>
+                {% endif %}
+
+                {% if note.reminder %}
+                    <p><strong>Нагадування:</strong> {{ note.reminder|date:"d.m.Y H:i" }}</p>
+                {% else %}
+                    <p><strong>Нагадування:</strong> Не встановлено</p>
+                {% endif %}
+
+                <div class="note-actions mt-auto">
+                    <small class="text-muted">Натисніть для редагування</small>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted fs-4">Нотаток ще немає.</p>
+                <a href="{% url 'create_note' %}" class="btn btn-primary">Створити першу нотатку</a>
+            </div>
+            {% endfor %}
+        </div>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
