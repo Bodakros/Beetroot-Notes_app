@@ -1,75 +1,63 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-    <meta charset="UTF-8">
-    <title>Видалити нотатку - {{ note.title }}</title>
+{% extends 'base/base.html' %}
 
-    {% load static %}
-    <link rel="stylesheet" type="text/css" href="{% static 'css/note.css' %}">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
+{% block title %}Delete note - {{ note.title }}{% endblock %}
 
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card shadow border-danger">
-                    <div class="card-header bg-danger text-white text-center">
-                        <h2 class="card-title mb-0">
-                            Підтвердження видалення
-                        </h2>
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white text-center">
+                    <h2 class="card-title mb-0">
+                        Підтвердження видалення
+                    </h2>
+                </div>
+
+                <div class="card-body text-center">
+                    <div class="alert alert-warning" role="alert">
+                        <h5 class="alert-heading">Увага!</h5>
+                        <p class="mb-0">
+                            Ви збираєтеся видалити нотатку. Цю дію не можна буде скасувати.
+                        </p>
                     </div>
 
-                    <div class="card-body text-center">
-                        <div class="alert alert-warning" role="alert">
-                            <h5 class="alert-heading">Увага!</h5>
-                            <p class="mb-0">
-                                Ви збираєтеся видалити нотатку. Цю дію не можна буде скасувати.
-                            </p>
+                    <div class="my-4 p-3 bg-light rounded">
+                        <h4 class="text-primary">{{ note.title }}</h4>
+                        <hr>
+                        <p><strong>Категорія:</strong> {{ note.category }}</p>
+
+                        {% if note.text %}
+                            <p><strong>Текст:</strong></p>
+                            <p class="text-muted">{{ note.text|truncatewords:30 }}</p>
+                        {% endif %}
+
+                        {% if note.reminder %}
+                            <p><strong>Нагадування:</strong> {{ note.reminder|date:"d.m.Y H:i" }}</p>
+                        {% endif %}
+                    </div>
+
+                    <p class="text-danger fw-bold">
+                        Ви впевнені, що хочете видалити цю нотатку?
+                    </p>
+
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'home' %}" class="btn btn-secondary btn-lg">
+                                ← Скасувати
+                            </a>
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                Так, видалити
+                            </button>
                         </div>
+                    </form>
 
-                        <div class="my-4 p-3 bg-light rounded">
-                            <h4 class="text-primary">{{ note.title }}</h4>
-                            <hr>
-                            <p><strong>Категорія:</strong> {{ note.category }}</p>
-
-                            {% if note.text %}
-                                <p><strong>Текст:</strong></p>
-                                <p class="text-muted">{{ note.text|truncatewords:30 }}</p>
-                            {% endif %}
-
-                            {% if note.reminder %}
-                                <p><strong>Нагадування:</strong> {{ note.reminder|date:"d.m.Y H:i" }}</p>
-                            {% endif %}
-                        </div>
-
-                        <p class="text-danger fw-bold">
-                            Ви впевнені, що хочете видалити цю нотатку?
-                        </p>
-
-                        <form method="post" class="d-inline">
-                            {% csrf_token %}
-                            <div class="btn-group" role="group">
-                                <a href="{% url 'home' %}" class="btn btn-secondary btn-lg">
-                                    ← Скасувати
-                                </a>
-                                <button type="submit" class="btn btn-danger btn-lg">
-                                    Так, видалити
-                                </button>
-                            </div>
-                        </form>
-
-                        <div class="mt-3">
-                            <small class="text-muted">
-                                Або поверніться до <a href="{% url 'home' %}">головної сторінки</a>
-                            </small>
-                        </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            Або поверніться до <a href="{% url 'home' %}">головної сторінки</a>
+                        </small>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}
