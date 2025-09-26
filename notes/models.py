@@ -19,7 +19,7 @@ class Note(models.Model):
 
 
 class Category(models.Model):
-    title = models.CharField(max_length=100, help_text='Name of your category')
+    title = models.CharField(max_length=100, help_text='Name of your category', unique=True)
 
     def __str__(self):
         return self.title

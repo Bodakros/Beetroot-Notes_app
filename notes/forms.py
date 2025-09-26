@@ -33,6 +33,19 @@ class NoteForm(forms.ModelForm):
             'reminder': 'Нагадування'
         }
 
+class CategoryForm(forms.ModelForm):
+    class Meta:
+        model = Category
+        fields = ['title']
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Введіть назву категорії'
+            })
+        }
+        labels = {
+            'title': 'Назва категорії'
+        }
 
 class SearchForm(forms.Form):
 
@@ -58,18 +71,3 @@ class FilterForm(forms.Form):
         }),
         label='Категорія'
     )
-
-
-class CategoryForm(forms.ModelForm):
-    class Meta:
-        model = Category
-        fields = ['title']
-        widgets = {
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Введіть назву категорії'
-            })
-        }
-        labels = {
-            'title': 'Назва категорії'
-        }

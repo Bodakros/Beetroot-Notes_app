@@ -96,7 +96,7 @@ def delete_note(request, note_id):
         'note': note,
     }
 
-    return  render(request, 'notes/note_delete.html')
+    return  render(request, 'notes/note_delete.html', context)
 
 def create_category(request):
     if request.method == "POST":
