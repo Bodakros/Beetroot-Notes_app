@@ -41,13 +41,13 @@ def create_note(request):
     if request.method == "POST":
         form = NoteForm(request.POST, user=request.user)
         if form.is_valid():
-            note = form.save()
+            note = form.save(commit=False)
             note.user = request.user
             note.save()
             messages.success(request, 'Нотатку успішно створено!')
             return redirect('home')
     else:
-        form = NoteForm()
+        form = NoteForm(user=request.user)
 
     context = {
         'form': form,
@@ -79,7 +79,7 @@ def edit_note(request, note_id):
             messages.success(request, 'Нотатку оновлено!')
             return redirect('note_detail', note_id=note_id)
     else:
-        form = NoteForm(instance=note)
+        form = NoteForm(instance=note, user=request.user)
 
     context = {
         'form': form,
@@ -111,13 +111,13 @@ def create_category(request):
     if request.method == "POST":
         form = CategoryForm(request.POST, user=request.user)
         if form.is_valid():
-            category = form.save()
+            category = form.save(commit=False)
             category.user = request.user
             category.save()
             messages.success(request, "Категорію створено!")
             return redirect('home')
     else:
-        form = CategoryForm()
+        form = CategoryForm(user=request.user)
 
     context = {
         'form': form,

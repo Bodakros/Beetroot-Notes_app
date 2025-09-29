@@ -1,6 +1,6 @@
 {% extends 'base/base.html' %}
 
-{% block title %}Main page{% endblock %}
+{% block title %}Main page - {{ user.username }}{% endblock %}
 
 {% block content %}
     <h1 class="main-title">Усі нотатки ({{ total_notes }})</h1>
