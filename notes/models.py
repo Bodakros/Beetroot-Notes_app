@@ -9,6 +9,7 @@ class Note(models.Model):
     text = models.TextField(blank=True, help_text='Text of your note (Can be blank)')
     category = models.ForeignKey('Category', on_delete=models.PROTECT)
     reminder = models.DateTimeField(blank=True, null=True)
+    user = models.ForeignKey('auth.User', on_delete=models.CASCADE)
 
     def __str__(self):
         return self.title
@@ -20,6 +21,7 @@ class Note(models.Model):
 
 class Category(models.Model):
     title = models.CharField(max_length=100, help_text='Name of your category', unique=True)
+    user = models.ForeignKey('auth.User', on_delete=models.CASCADE)
 
     def __str__(self):
         return self.title
@@ -27,3 +29,4 @@ class Category(models.Model):
     class Meta:
         verbose_name = "Category"
         verbose_name_plural = "Categories"
+        unique_together = ('title', 'user')

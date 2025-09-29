@@ -4,6 +4,12 @@ from .models import *
 
 class NoteForm(forms.ModelForm):
 
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super(NoteForm, self).__init__(*args, **kwargs)
+        if self.user:
+            self.fields['category'].queryset = Category.objects.filter(user=self.user)
+
     class Meta:
         model = Note
         fields = ['title', 'text', 'category', 'reminder']
@@ -34,6 +40,22 @@ class NoteForm(forms.ModelForm):
         }
 
 class CategoryForm(forms.ModelForm):
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super(CategoryForm, self).__init__(*args, **kwargs)
+
+    def clean_title(self):
+        title = self.cleaned_data.get('title')
+        if self.user:
+            existing = Category.objects.filter(title=title, user=self.user)
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+
+            if existing.exists():
+                raise forms.ValidationError("Категорія з такою назвою вже існує.")
+        return title
+
     class Meta:
         model = Category
         fields = ['title']
@@ -61,6 +83,15 @@ class SearchForm(forms.Form):
 
 
 class FilterForm(forms.Form):
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        if self.user:
+            self.fields['category'].queryset = Category.objects.filter(user=self.user)
+        else:
+            self.fields['category'].queryset = Category.objects.none()
 
     category = forms.ModelChoiceField(
         queryset=Category.objects.all(),

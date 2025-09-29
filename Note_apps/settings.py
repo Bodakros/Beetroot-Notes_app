@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_browser_reload',
     'notes',
+    'users',
 ]
 
 MIDDLEWARE = [
@@ -99,16 +100,6 @@ else:
         }
     }
 
-# DATABASES = {
-#         'default': {
-#             'ENGINE': 'django.db.backends.postgresql',
-#             'NAME': config('DB_NAME', default='Notes_app'),
-#             'USER': config('DB_USER', default='postgres'),
-#             'PASSWORD': config('DB_PASSWORD', default=''),
-#             'HOST': config('DB_HOST', default='localhost'),
-#             'PORT': config('DB_PORT', default='5432'),
-#         }
-#     }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -155,3 +146,8 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Authentication settings
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = '/notes/'
+LOGOUT_REDIRECT_URL = '/users/'

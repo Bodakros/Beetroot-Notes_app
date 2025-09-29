@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_required
 from django.contrib.messages.context_processors import messages
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -9,12 +10,12 @@ from notes.models import *
 
 
 # Create your views here.
-
+@login_required
 def home(request):
 
-    notes = Note.objects.all()
+    notes = Note.objects.filter(user=request.user)
     search_form = SearchForm(request.GET)
-    filter_form = FilterForm(request.GET)
+    filter_form = FilterForm(request.GET, user=request.user)
 
     if search_form.is_valid() and search_form.cleaned_data['search_query']:
         search_query = search_form.cleaned_data['search_query']
@@ -34,12 +35,15 @@ def home(request):
     return render(request, 'notes/home_page.html', context)
 
 
+@login_required
 def create_note(request):
 
     if request.method == "POST":
-        form = NoteForm(request.POST)
+        form = NoteForm(request.POST, user=request.user)
         if form.is_valid():
-            form.save()
+            note = form.save()
+            note.user = request.user
+            note.save()
             messages.success(request, 'Нотатку успішно створено!')
             return redirect('home')
     else:
@@ -53,8 +57,9 @@ def create_note(request):
     return render(request, 'notes/note_form.html', context)
 
 
+@login_required
 def note_detail(request, note_id):
-    note = get_object_or_404(Note, id=note_id)
+    note = get_object_or_404(Note, id=note_id, user=request.user)
 
     context = {
         'note': note,
@@ -63,11 +68,12 @@ def note_detail(request, note_id):
     return render(request, 'notes/note_detail.html', context)
 
 
+@login_required
 def edit_note(request, note_id):
-    note = get_object_or_404(Note, id=note_id)
+    note = get_object_or_404(Note, id=note_id, user=request.user)
 
     if request.method == "POST":
-        form = NoteForm(request.POST, instance=note)
+        form = NoteForm(request.POST, instance=note, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Нотатку оновлено!')
@@ -84,8 +90,9 @@ def edit_note(request, note_id):
     return  render(request, 'notes/note_form.html', context)
 
 
+@login_required
 def delete_note(request, note_id):
-    note = get_object_or_404(Note, id=note_id)
+    note = get_object_or_404(Note, id=note_id, user=request.user)
 
     if request.method == "POST":
         note.delete()
@@ -98,11 +105,15 @@ def delete_note(request, note_id):
 
     return  render(request, 'notes/note_delete.html', context)
 
+
+@login_required
 def create_category(request):
     if request.method == "POST":
-        form = CategoryForm(request.POST)
+        form = CategoryForm(request.POST, user=request.user)
         if form.is_valid():
-            form.save()
+            category = form.save()
+            category.user = request.user
+            category.save()
             messages.success(request, "Категорію створено!")
             return redirect('home')
     else:
