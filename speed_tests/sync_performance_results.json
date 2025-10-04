@@ -1,0 +1,78 @@
+{
+  "test_type": "sync_views",
+  "total_tests": 10,
+  "total_time": 0.1546,
+  "average_time": 0.0155,
+  "results": [
+    {
+      "test_name": "Profile Page",
+      "method": "GET",
+      "url": "/users/profile/",
+      "status_code": 302,
+      "fin_time": 0.0205
+    },
+    {
+      "test_name": "Note Detail Page",
+      "method": "GET",
+      "url": "/notes/1/",
+      "status_code": 200,
+      "fin_time": 0.037
+    },
+    {
+      "test_name": "Delete Note Page",
+      "method": "GET",
+      "url": "/notes/1/delete/",
+      "status_code": 200,
+      "fin_time": 0.008
+    },
+    {
+      "test_name": "Category Creation Page",
+      "method": "GET",
+      "url": "/notes/category/create/",
+      "status_code": 200,
+      "fin_time": 0.022
+    },
+    {
+      "test_name": "Edit Note Form Page",
+      "method": "GET",
+      "url": "/notes/1/edit/",
+      "status_code": 200,
+      "fin_time": 0.0162
+    },
+    {
+      "test_name": "Home Page Load",
+      "method": "GET",
+      "url": "/notes/",
+      "status_code": 200,
+      "fin_time": 0.0136
+    },
+    {
+      "test_name": "Search Notes",
+      "method": "GET",
+      "url": "/notes/?search_query=Test",
+      "status_code": 200,
+      "fin_time": 0.0113
+    },
+    {
+      "test_name": "Submit Create Note Form",
+      "method": "POST",
+      "url": "/notes/create/",
+      "status_code": 302,
+      "fin_time": 0.0079
+    },
+    {
+      "test_name": "Submit Edit Note Form",
+      "method": "POST",
+      "url": "/notes/1/edit/",
+      "status_code": 302,
+      "fin_time": 0.009
+    },
+    {
+      "test_name": "Create Note Form Page",
+      "method": "GET",
+      "url": "/notes/create/",
+      "status_code": 200,
+      "fin_time": 0.0091
+    }
+  ]
+}

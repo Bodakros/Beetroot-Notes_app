@@ -1,85 +1,141 @@
 from django.contrib.auth.decorators import login_required
-from django.contrib.messages.context_processors import messages
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.http import HttpResponse
-from django.db.models import Q
+from asgiref.sync import sync_to_async
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import Http404
 
 from notes.forms import *
 from notes.models import *
 
 
-# Create your views here.
+@sync_to_async
+def filter_and_get_notes(user, search_query=None, category=None):
+    notes_qs = Note.objects.filter(user=user).select_related('category')
+
+    if search_query:
+        notes_qs = notes_qs.filter(title__icontains=search_query)
+
+    if category:
+        notes_qs = notes_qs.filter(category=category)
+
+    return list(notes_qs)
+
+
+@sync_to_async
+def get_note_or_404(note_id, user):
+    try:
+        return Note.objects.select_related('category').get(id=note_id, user=user)
+    except ObjectDoesNotExist:
+        raise Http404("Note not found")
+
+
+@sync_to_async
+def create_note_from_form(form, user):
+    note = form.save(commit=False)
+    note.user = user
+    note.save()
+    return note
+
+
+@sync_to_async
+def update_note_from_form(form):
+    return form.save()
+
+
+@sync_to_async
+def delete_note_object(note):
+    note.delete()
+
+
+@sync_to_async
+def create_category_from_form(form, user):
+    category = form.save(commit=False)
+    category.user = user
+    category.save()
+    return category
+
+
 @login_required
-def home(request):
+async def home(request):
 
-    notes = Note.objects.filter(user=request.user)
-    search_form = SearchForm(request.GET)
-    filter_form = FilterForm(request.GET, user=request.user)
+    search_form = await sync_to_async(SearchForm)(request.GET)
+    filter_form = await sync_to_async(lambda: FilterForm(request.GET, user=request.user))()
 
-    if search_form.is_valid() and search_form.cleaned_data['search_query']:
-        search_query = search_form.cleaned_data['search_query']
-        notes = notes.filter(title__icontains=search_query)
+    search_valid = await sync_to_async(search_form.is_valid)()
+    filter_valid = await sync_to_async(filter_form.is_valid)()
 
-    if filter_form.is_valid() and filter_form.cleaned_data['category']:
-        category = filter_form.cleaned_data['category']
-        notes = notes.filter(category=category)
+    search_query = None
+    category = None
+
+    if search_valid:
+        search_query = search_form.cleaned_data.get('search_query')
+
+    if filter_valid:
+        category = filter_form.cleaned_data.get('category')
+
+    notes = await filter_and_get_notes(request.user, search_query, category)
 
     context = {
         'notes': notes,
-        'total_notes': notes.count(),
+        'total_notes': len(notes),
         'search': search_form,
         'filter': filter_form,
     }
 
-    return render(request, 'notes/home_page.html', context)
+    return await sync_to_async(render)(request, 'notes/home_page.html', context)
 
 
 @login_required
-def create_note(request):
+async def create_note(request):
 
     if request.method == "POST":
-        form = NoteForm(request.POST, user=request.user)
-        if form.is_valid():
-            note = form.save(commit=False)
-            note.user = request.user
-            note.save()
-            messages.success(request, 'Нотатку успішно створено!')
+
+        form = await sync_to_async(lambda: NoteForm(request.POST, user=request.user))()
+        is_valid = await sync_to_async(form.is_valid)()
+
+        if is_valid:
+            await create_note_from_form(form, request.user)
+            await sync_to_async(messages.success)(request, 'Нотатку успішно створено!')
             return redirect('home')
     else:
-        form = NoteForm(user=request.user)
+        form = await sync_to_async(lambda: NoteForm(user=request.user))()
 
     context = {
         'form': form,
         'title': 'Створити нотатку'
     }
 
-    return render(request, 'notes/note_form.html', context)
+    return await sync_to_async(render)(request, 'notes/note_form.html', context)
 
 
 @login_required
-def note_detail(request, note_id):
-    note = get_object_or_404(Note, id=note_id, user=request.user)
+async def note_detail(request, note_id):
+
+    note = await get_note_or_404(note_id, request.user)
 
     context = {
         'note': note,
     }
 
-    return render(request, 'notes/note_detail.html', context)
+    return await sync_to_async(render)(request, 'notes/note_detail.html', context)
 
 
 @login_required
-def edit_note(request, note_id):
-    note = get_object_or_404(Note, id=note_id, user=request.user)
+async def edit_note(request, note_id):
+
+    note = await get_note_or_404(note_id, request.user)
 
     if request.method == "POST":
-        form = NoteForm(request.POST, instance=note, user=request.user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Нотатку оновлено!')
+        form = await sync_to_async(lambda: NoteForm(request.POST, instance=note, user=request.user))()
+        is_valid = await sync_to_async(form.is_valid)()
+
+        if is_valid:
+            await update_note_from_form(form)
+            await sync_to_async(messages.success)(request, 'Нотатку оновлено!')
             return redirect('note_detail', note_id=note_id)
     else:
-        form = NoteForm(instance=note, user=request.user)
+        form = await sync_to_async(lambda: NoteForm(instance=note, user=request.user))()
 
     context = {
         'form': form,
@@ -87,39 +143,42 @@ def edit_note(request, note_id):
         'title': 'Редагувати нотатку'
     }
 
-    return  render(request, 'notes/note_form.html', context)
+    return await sync_to_async(render)(request, 'notes/note_form.html', context)
 
 
 @login_required
-def delete_note(request, note_id):
-    note = get_object_or_404(Note, id=note_id, user=request.user)
+async def delete_note(request, note_id):
+
+    note = await get_note_or_404(note_id, request.user)
 
     if request.method == "POST":
-        note.delete()
-        messages.success(request, 'Нотатку видалено!')
+        await delete_note_object(note)
+        await sync_to_async(messages.success)(request, 'Нотатку видалено!')
         return redirect('home')
 
     context = {
         'note': note,
     }
 
-    return  render(request, 'notes/note_delete.html', context)
+    return await sync_to_async(render)(request, 'notes/note_delete.html', context)
 
 
 @login_required
-def create_category(request):
+async def create_category(request):
+
     if request.method == "POST":
-        form = CategoryForm(request.POST, user=request.user)
-        if form.is_valid():
-            category = form.save(commit=False)
-            category.user = request.user
-            category.save()
-            messages.success(request, "Категорію створено!")
+        form = await sync_to_async(lambda: CategoryForm(request.POST, user=request.user))()
+        is_valid = await sync_to_async(form.is_valid)()
+
+        if is_valid:
+            await create_category_from_form(form, request.user)
+            await sync_to_async(messages.success)(request, "Категорію створено!")
             return redirect('home')
     else:
-        form = CategoryForm(user=request.user)
+        form = await sync_to_async(lambda: CategoryForm(user=request.user))()
 
     context = {
         'form': form,
     }
-    return  render(request, 'notes/category_form.html', context)
+
+    return await sync_to_async(render)(request, 'notes/category_form.html', context)

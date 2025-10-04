@@ -1,57 +1,72 @@
-from django.contrib.auth import login
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.messages.context_processors import messages
+from django.contrib.auth import login, logout
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.contrib import messages
-from django.contrib.auth.views import LoginView
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import CreateView
-from django.contrib.auth import logout
+from asgiref.sync import sync_to_async
 
 
 # Create your views here.
 
-class MyLoginView(LoginView):
-    template_name = 'users/login.html'
-    redirect_authenticated_user = True
+class MyLoginView(View):
 
-    def get_success_url(self):
-        return reverse_lazy('profile')
+    async def get(self, request):
+        is_authenticated = await sync_to_async(lambda: request.user.is_authenticated)()
 
-    def form_invalid(self, form):
-        messages.error(self.request, 'Непарвильний логін або пароль')
-        return super().form_invalid(form)
+        if is_authenticated:
+            return redirect('profile')
+
+        form = await sync_to_async(AuthenticationForm)()
+        return await sync_to_async(render)(request, 'users/login.html', {'form': form})
+
+    async def post(self, request):
+        form = await sync_to_async(lambda: AuthenticationForm(request, data=request.POST))()
+        is_valid = await sync_to_async(form.is_valid)()
+
+        if is_valid:
+            user = await sync_to_async(lambda: form.get_user())()
+            await sync_to_async(login)(request, user)
+            return redirect('profile')
+        else:
+            await sync_to_async(messages.error)(request, 'Непарвильний логін або пароль')
+            return await sync_to_async(render)(request, 'users/login.html', {'form': form})
 
 
-class RegisterView(CreateView):
-    form_class = UserCreationForm
-    template_name = 'users/register.html'
-    success_url = reverse_lazy('home')
+class RegisterView(View):
 
-    def get_success_url(self):
-        return reverse_lazy('home')
+    async def get(self, request):
+        form = await sync_to_async(UserCreationForm)()
+        return await sync_to_async(render)(request, 'users/register.html', {'form': form})
 
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        login(self.request, self.object)
-        return response
+    async def post(self, request):
+        form = await sync_to_async(lambda: UserCreationForm(request.POST))()
+        is_valid = await sync_to_async(form.is_valid)()
 
-    def form_invalid(self, form):
-        messages.error(self.request, 'Помилка реєстрації. Будь ласка, перевірте введені дані.')
-        return super().form_invalid(form)
-# Testpass123
-#Testpass321
+        if is_valid:
+            user = await sync_to_async(form.save)()
+            await sync_to_async(login)(request, user)
+            return redirect('home')
+        else:
+            await sync_to_async(messages.error)(request, 'Помилка реєстрації. Будь ласка, перевірте введені дані.')
+            return await sync_to_async(render)(request, 'users/register.html', {'form': form})
+
 
 class ProfileView(View):
-    def get(self, request):
-        if not request.user.is_authenticated:
+
+    async def get(self, request):
+        is_authenticated = await sync_to_async(lambda: request.user.is_authenticated)()
+
+        if not is_authenticated:
             return redirect('login')
 
         return redirect('home')
 
+
 class LogoutView(View):
 
-    def get(self, request):
-        logout(request)
+    async def get(self, request):
+        await sync_to_async(logout)(request)
         return redirect('login')
