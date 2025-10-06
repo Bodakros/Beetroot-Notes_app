@@ -20,7 +20,7 @@ class Note(models.Model):
 
 
 class Category(models.Model):
-    title = models.CharField(max_length=100, help_text='Name of your category', unique=True)
+    title = models.CharField(max_length=100, help_text='Name of your category')
     user = models.ForeignKey('auth.User', on_delete=models.CASCADE)
 
     def __str__(self):

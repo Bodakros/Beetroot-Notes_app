@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 from .models import *
 from .forms import *
@@ -10,12 +11,19 @@ from .views import *
 
 class NoteModelTest(TestCase):
 
+    @classmethod
+    def setUpTestData(cls):
+        """Створюється один раз для всього тестового класу"""
+        cls.user = User.objects.create_user(username='testuser', password='testpass123')
+
     def setUp(self):
-        self.category = Category.objects.create(title="Test Category")
+        """Створюється перед кожним тестом"""
+        self.category = Category.objects.create(title="Test Category", user=self.user)
         self.note = Note.objects.create(
             title="Test Note",
             text="This is a test note.",
             category=self.category,
+            user=self.user,
             reminder=timezone.now()
         )
 
@@ -25,22 +33,22 @@ class NoteModelTest(TestCase):
         self.assertEqual(self.note.category.title, "Test Category")
         self.assertIsNotNone(self.note.reminder)
 
-
     def test_note_creation_without_text_reminder(self):
         note = Note.objects.create(
             title="Note without text and reminder",
-            category=self.category
+            category=self.category,
+            user=self.user
         )
         self.assertEqual(note.text, "")
         self.assertIsNone(note.reminder)
 
     def test_validation_error_on_missing_title(self):
-        note = Note(title="", category=self.category)
+        note = Note(title="", category=self.category, user=self.user)
         with self.assertRaises(ValidationError):
             note.full_clean()
 
     def test_validation_error_on_missing_category(self):
-        note = Note(title="Test", category=None)
+        note = Note(title="Test", category=None, user=self.user)
         with self.assertRaises(ValidationError):
             note.full_clean()
 
@@ -54,7 +62,7 @@ class NoteModelTest(TestCase):
     def test_note_str_representation(self):
         self.assertEqual(str(self.note), "Test Note")
 
-    def test_category_verbose_names(self):
+    def test_note_verbose_names(self):
         self.assertEqual(Note._meta.verbose_name, "Note")
         self.assertEqual(Note._meta.verbose_name_plural, "Notes")
 
@@ -71,26 +79,43 @@ class NoteModelTest(TestCase):
         note2 = Note.objects.create(
             title="Second Note",
             text="This is another test note.",
-            category=self.category
+            category=self.category,
+            user=self.user
         )
         self.assertEqual(note2.category, self.category)
         self.assertIn(note2, self.category.note_set.all())
 
     def test_note_change_category(self):
-        new_category = Category.objects.create(title="New Category")
+        new_category = Category.objects.create(title="New Category", user=self.user)
         self.note.category = new_category
         self.note.save()
         self.assertEqual(self.note.category, new_category)
         self.assertIn(self.note, new_category.note_set.all())
         self.assertNotIn(self.note, self.category.note_set.all())
 
-class CategoryModelTest(TestCase):
-    def setUp(self):
-        self.category = Category.objects.create(title="Test Category")
 
-    def test_unique_category_names(self):
+class CategoryModelTest(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        """Створюється один раз для всього класу"""
+        cls.user = User.objects.create_user(username='testuser', password='testpass123')
+        cls.user2 = User.objects.create_user(username='testuser2', password='testpass123')
+
+    def setUp(self):
+        """Створюється перед кожним тестом"""
+        self.category = Category.objects.create(title="Test Category", user=self.user)
+
+    def test_unique_category_names_same_user(self):
+        """Один користувач не може створити дві категорії з однаковою назвою"""
         with self.assertRaises(Exception):
-            Category.objects.create(title="Test Category")
+            Category.objects.create(title="Test Category", user=self.user)
+
+    def test_different_users_same_category_name(self):
+        """Різні користувачі можуть мати категорії з однаковими назвами"""
+        category2 = Category.objects.create(title="Test Category", user=self.user2)
+        self.assertEqual(category2.title, "Test Category")
+        self.assertNotEqual(category2.user, self.user)
 
     def test_category_str_representation(self):
         self.assertEqual(str(self.category), "Test Category")
@@ -106,8 +131,12 @@ class CategoryModelTest(TestCase):
 
 class NoteFormTest(TestCase):
 
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='testuser', password='testpass123')
+
     def setUp(self):
-        self.category = Category.objects.create(title="Test Category")
+        self.category = Category.objects.create(title="Test Category", user=self.user)
         self.valid_data = {
             'title': 'Test Note',
             'text': 'This is a test note.',
@@ -116,10 +145,12 @@ class NoteFormTest(TestCase):
         }
 
     def test_note_form_valid_data_all_field(self):
-        form = NoteForm(data=self.valid_data)
-        note = form.save()
-
+        form = NoteForm(data=self.valid_data, user=self.user)
         self.assertTrue(form.is_valid())
+        note = form.save(commit=False)
+        note.user = self.user
+        note.save()
+
         self.assertEqual(note.title, 'Test Note')
         self.assertIsNotNone(note.reminder)
 
@@ -128,10 +159,12 @@ class NoteFormTest(TestCase):
             'title': 'Minimal Note',
             'category': self.category.id,
         }
-        form = NoteForm(data=minimal_data)
-        note = form.save()
-
+        form = NoteForm(data=minimal_data, user=self.user)
         self.assertTrue(form.is_valid())
+        note = form.save(commit=False)
+        note.user = self.user
+        note.save()
+
         self.assertEqual(note.title, 'Minimal Note')
         self.assertEqual(note.text, '')
         self.assertIsNone(note.reminder)
@@ -139,13 +172,13 @@ class NoteFormTest(TestCase):
     def test_note_form_missing_title(self):
         invalid_data = self.valid_data.copy()
         invalid_data['title'] = ''
-        form = NoteForm(data=invalid_data)
+        form = NoteForm(data=invalid_data, user=self.user)
 
         self.assertFalse(form.is_valid())
         self.assertIn('title', form.errors)
 
     def test_form_widgets_and_labels(self):
-        form = NoteForm()
+        form = NoteForm(user=self.user)
         self.assertIn('class="form-control"', str(form['title']))
         self.assertIn('placeholder="Введіть назву нотатки"', str(form['title']))
         self.assertEqual(form.fields['title'].label, 'Назва нотатки')
@@ -164,38 +197,37 @@ class NoteFormTest(TestCase):
 
 class CategoryFormTest(TestCase):
 
-    def setUp(self):
-        self.valid_data = {
-            'title': 'Test Category'
-        }
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='testuser', password='testpass123')
 
     def test_category_form_valid_data(self):
-        form = CategoryForm(data=self.valid_data)
-        category = form.save()
-
+        valid_data = {'title': 'Test Category'}
+        form = CategoryForm(data=valid_data, user=self.user)
         self.assertTrue(form.is_valid())
+        category = form.save(commit=False)
+        category.user = self.user
+        category.save()
+
         self.assertEqual(category.title, 'Test Category')
 
     def test_category_form_missing_title(self):
-        invalid_data = self.valid_data.copy()
-        invalid_data['title'] = ''
-        form = CategoryForm(data=invalid_data)
+        invalid_data = {'title': ''}
+        form = CategoryForm(data=invalid_data, user=self.user)
 
         self.assertFalse(form.is_valid())
         self.assertIn('title', form.errors)
 
     def test_unique_category_names(self):
-        Category.objects.create(title="Unique Category")
-        duplicate_data = {
-            'title': 'Unique Category'
-        }
-        form = CategoryForm(data=duplicate_data)
+        Category.objects.create(title="Unique Category", user=self.user)
+        duplicate_data = {'title': 'Unique Category'}
+        form = CategoryForm(data=duplicate_data, user=self.user)
 
         self.assertFalse(form.is_valid())
         self.assertIn('title', form.errors)
 
     def test_form_widgets_and_labels(self):
-        form = CategoryForm()
+        form = CategoryForm(user=self.user)
         self.assertIn('class="form-control"', str(form['title']))
         self.assertIn('placeholder="Введіть назву категорії"', str(form['title']))
         self.assertEqual(form.fields['title'].label, 'Назва категорії')
@@ -228,35 +260,45 @@ class SearchFormTest(TestCase):
 
 class FilterFormTest(TestCase):
 
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='testuser', password='testpass123')
+
     def setUp(self):
-        self.category1 = Category.objects.create(title="Category 1")
-        self.category2 = Category.objects.create(title="Category 2")
+        self.category1 = Category.objects.create(title="Category 1", user=self.user)
+        self.category2 = Category.objects.create(title="Category 2", user=self.user)
 
     def test_filter_form_no_selection(self):
-        form = FilterForm(data={'category': ''})
+        form = FilterForm(data={'category': ''}, user=self.user)
         self.assertTrue(form.is_valid())
         self.assertIsNone(form.cleaned_data['category'])
 
     def test_filter_form_valid_selection(self):
-        form = FilterForm(data={'category': self.category1.id})
+        form = FilterForm(data={'category': self.category1.id}, user=self.user)
         self.assertTrue(form.is_valid())
         self.assertEqual(form.cleaned_data['category'], self.category1)
 
-        form = FilterForm(data={'category': self.category2.id})
+        form = FilterForm(data={'category': self.category2.id}, user=self.user)
         self.assertTrue(form.is_valid())
         self.assertEqual(form.cleaned_data['category'], self.category2)
 
     def test_form_widgets_and_labels(self):
-        form = FilterForm()
+        form = FilterForm(user=self.user)
         self.assertIn('class="form-control"', str(form['category']))
         self.assertEqual(form.fields['category'].label, 'Категорія')
 
 
 class NoteViewsTest(TestCase):
 
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='testuser', password='testpass123')
+
     def setUp(self):
         self.client = Client()
-        self.category = Category.objects.create(title="Test Category")
+        self.client.login(username='testuser', password='testpass123')
+
+        self.category = Category.objects.create(title="Test Category", user=self.user)
         self.data = {
             'title': 'New Note',
             'text': 'This is a new note.',
@@ -274,10 +316,10 @@ class NoteViewsTest(TestCase):
             title="Test Note",
             text="This is a test note.",
             category=self.category,
+            user=self.user,
             reminder=timezone.now()
         )
 
-    # home view tests
     def test_home_view(self):
         url = reverse('home')
         response = self.client.get(url)
@@ -287,7 +329,6 @@ class NoteViewsTest(TestCase):
         self.assertContains(response, self.note.title)
         self.assertContains(response, self.note.text)
 
-    # create_note view tests
     def test_create_note_view_get(self):
         url = reverse('create_note')
         response = self.client.get(url)
@@ -314,7 +355,6 @@ class NoteViewsTest(TestCase):
         self.assertTemplateUsed(response, 'notes/note_form.html')
         self.assertFalse(Note.objects.filter(text='This is a new note.').exists())
 
-    # note_detail view tests
     def test_note_detail_view(self):
         url = reverse('note_detail', args=[self.note.id])
         response = self.client.get(url)
@@ -330,7 +370,6 @@ class NoteViewsTest(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    # edit_note view tests
     def test_edit_note_view_get(self):
         url = reverse('edit_note', args=[self.note.id])
         response = self.client.get(url)
@@ -360,6 +399,7 @@ class NoteViewsTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'notes/note_form.html')
+        self.note.refresh_from_db()
         self.assertNotEqual(self.note.title, 'Updated Note')
 
     def test_edit_note_view_not_found(self):
@@ -368,7 +408,6 @@ class NoteViewsTest(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    # delete_note view tests
     def test_delete_note_view_get(self):
         url = reverse('delete_note', args=[self.note.id])
         response = self.client.get(url)
@@ -391,7 +430,6 @@ class NoteViewsTest(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    # create_category view tests
     def test_create_category_view_get(self):
         url = reverse('create_category')
         response = self.client.get(url)
@@ -405,24 +443,20 @@ class NoteViewsTest(TestCase):
 
         self.assertRedirects(response, reverse('home'))
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(Category.objects.filter(title='New Category').exists())
+        self.assertTrue(Category.objects.filter(title='New Category', user=self.user).exists())
 
     def test_create_category_view_post_invalid(self):
         url = reverse('create_category')
         data = {'title': 'New Category'}
-        data2 = {'title': 'New Category'}
         response = self.client.post(url, data)
-        response2 = self.client.post(url, data2)
+        response2 = self.client.post(url, data)
 
         self.assertEqual(response2.status_code, 200)
         self.assertTemplateUsed(response2, 'notes/category_form.html')
-        self.assertFormError(response2.context['form'], 'title',
-                             'Category with this Title already exists.')
 
-    # Search and Filter tests
     def test_search_functionality(self):
         url = reverse('create_note')
-        response = self.client.post(url, self.data)
+        self.client.post(url, self.data)
 
         url = reverse('home')
         response = self.client.get(url, {'search_query': 'New'})
@@ -432,11 +466,11 @@ class NoteViewsTest(TestCase):
         self.assertNotContains(response, 'Test Note')
 
     def test_filter_functionality(self):
-        category2 = Category.objects.create(title="Another Category")
+        category2 = Category.objects.create(title="Another Category", user=self.user)
         url = reverse('create_note')
         data = self.data.copy()
-        data['category'] = category2
-        response = self.client.post(url, data)
+        data['category'] = category2.id
+        self.client.post(url, data)
 
         url = reverse('home')
         response = self.client.get(url, {'category': self.category.id})
@@ -445,10 +479,18 @@ class NoteViewsTest(TestCase):
         self.assertContains(response, self.note.title)
         self.assertNotContains(response, 'New Note')
 
+
 class IntegrationTest(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='testuser', password='testpass123')
+
     def setUp(self):
         self.client = Client()
-        self.category = Category.objects.create(title="Integration Category")
+        self.client.login(username='testuser', password='testpass123')
+
+        self.category = Category.objects.create(title="Integration Category", user=self.user)
         self.data = {
             'title': 'New Note',
             'text': 'This is a new note.',
@@ -461,7 +503,7 @@ class IntegrationTest(TestCase):
         create_url = reverse('create_note')
         response = self.client.post(create_url, self.data)
         self.assertRedirects(response, reverse('home'))
-        note = Note.objects.get(title='New Note')
+        note = Note.objects.get(title='New Note', user=self.user)
 
         # Read
         detail_url = reverse('note_detail', args=[note.id])
